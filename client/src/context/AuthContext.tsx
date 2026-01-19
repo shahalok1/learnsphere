@@ -1,40 +1,26 @@
-import { createContext, useContext, useEffect, useState } from "react";
-
-type User = {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-};
+import { createContext, useContext, useState } from "react";
 
 type AuthContextType = {
-  user: User | null;
-  login: (token: string, user: User) => void;
+  user: any;
+  login: (userData: any, token: string) => void;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user") || "null")
+  );
 
-  // Restore user on refresh
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  const login = (token: string, userData: User) => {
-    localStorage.setItem("token", token);
+  const login = (userData: any, token: string) => {
     localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", token);
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.clear();
     setUser(null);
   };
 
@@ -43,12 +29,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
     throw new Error("useAuth must be used inside AuthProvider");
   }
-  return context;
-};
+  return ctx;
+}

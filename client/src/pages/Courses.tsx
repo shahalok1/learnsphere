@@ -16,15 +16,40 @@ export default function Courses() {
   const navigate = useNavigate();
 
   const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
 
-  if (!user) return null;
-
   useEffect(() => {
-    api.get("/courses").then((res) => setCourses(res.data));
+    const fetchCourses = async () => {
+      try {
+        const res = await api.get("/courses");
+
+        // 🔧 Normalize backend response (IMPORTANT)
+        const data: Course[] =
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.data.courses)
+            ? res.data.courses
+            : Array.isArray(res.data.data)
+            ? res.data.data
+            : [];
+
+        setCourses(data);
+      } catch (err) {
+        console.error("Failed to load courses", err);
+        setCourses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
   }, []);
 
+  if (!user) return null;
+
+  /* ---------- FILTERING ---------- */
   const filteredCourses = courses.filter((course) => {
     const matchesSearch = course.title
       .toLowerCase()
@@ -36,6 +61,16 @@ export default function Courses() {
     return matchesSearch && matchesCategory;
   });
 
+  /* ---------- LOADING ---------- */
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading courses...
+      </div>
+    );
+  }
+
+  /* ---------- UI ---------- */
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-10">
       <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-8">
@@ -63,34 +98,44 @@ export default function Courses() {
         </select>
       </div>
 
-      {/* COURSES */}
-      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredCourses.map((course) => (
-          <div
-            key={course.id}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-2xl transition overflow-hidden cursor-pointer"
-            onClick={() => navigate(`/course/${course.id}`)}
-          >
-            <img
-              src={getCourseImage(course.id)}
-              alt={course.title}
-              className="h-48 w-full object-cover"
-            />
+      {/* COURSES GRID */}
+      {filteredCourses.length === 0 ? (
+        <p className="text-gray-600 dark:text-gray-400">
+          No courses found.
+        </p>
+      ) : (
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredCourses.map((course) => (
+            <div
+              key={course.id}
+              onClick={() => navigate(`/course/${course.id}`)}
+              className="cursor-pointer bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-2xl transition overflow-hidden"
+            >
+              {/* IMAGE */}
+              <img
+                src={getCourseImage(course.id)}
+                alt={course.title}
+                className="h-48 w-full object-cover"
+              />
 
-            <div className="p-6">
-              <p className="text-xs font-semibold uppercase text-indigo-600">
-                {course.category}
-              </p>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-2">
-                {course.title}
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">
-                {course.description}
-              </p>
+              {/* CONTENT */}
+              <div className="p-6">
+                <p className="text-xs font-semibold uppercase text-indigo-600">
+                  {course.category}
+                </p>
+
+                <h2 className="mt-2 text-xl font-bold text-gray-900 dark:text-white">
+                  {course.title}
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                  {course.description}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

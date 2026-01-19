@@ -1,9 +1,10 @@
 const express = require("express");
 const db = require("../config/db");
+
 const router = express.Router();
 
 /**
- * GENERATE LEARNING PATH
+ * CREATE / UPDATE LEARNING PATH
  */
 router.post("/", (req, res) => {
   const { user_id, goal, daily_time } = req.body;
@@ -12,93 +13,78 @@ router.post("/", (req, res) => {
     return res.status(400).json({ message: "All fields are required" });
   }
 
-  // Simple rule-based plan (can be upgraded later)
-  let plan = [];
+  const plan = [
+    { week: 1, focus: "HTML & CSS Basics" },
+    { week: 2, focus: "JavaScript Fundamentals" },
+    { week: 3, focus: "React Basics" },
+    { week: 4, focus: "Node.js & Express" },
+    { week: 5, focus: "MySQL & REST APIs" },
+    { week: 6, focus: "Full Stack Project" }
+  ];
 
-  if (goal.toLowerCase().includes("full")) {
-    plan = [
-      { week: 1, focus: "HTML & CSS Basics" },
-      { week: 2, focus: "JavaScript Fundamentals" },
-      { week: 3, focus: "React Basics" },
-      { week: 4, focus: "Backend with Node.js" },
-      { week: 5, focus: "MySQL & APIs" },
-      { week: 6, focus: "Full Stack Project" }
-    ];
-  } else if (goal.toLowerCase().includes("frontend")) {
-    plan = [
-      { week: 1, focus: "HTML & CSS" },
-      { week: 2, focus: "JavaScript" },
-      { week: 3, focus: "React" },
-      { week: 4, focus: "Advanced UI & Animations" }
-    ];
-  } else {
-    plan = [
-      { week: 1, focus: "Fundamentals" },
-      { week: 2, focus: "Intermediate Concepts" },
-      { week: 3, focus: "Projects" }
-    ];
-  }
-
+  // Delete old path (keep only one)
   db.query(
-    "INSERT INTO learning_paths (user_id, goal, daily_time, generated_plan) VALUES (?, ?, ?, ?)",
-    [user_id, goal, daily_time, JSON.stringify(plan)],
+    "DELETE FROM learning_paths WHERE user_id = ?",
+    [user_id],
     (err) => {
       if (err) return res.status(500).json({ error: err });
 
-      res.status(201).json({
-        message: "Learning path generated successfully",
-        plan
-      });
+      db.query(
+        `
+        INSERT INTO learning_paths (user_id, goal, daily_time, generated_plan)
+        VALUES (?, ?, ?, ?)
+        `,
+        [user_id, goal, daily_time, JSON.stringify(plan)],
+        (err) => {
+          if (err)
+            return res
+              .status(500)
+              .json({ error: "Failed to create learning path" });
+
+          res.status(201).json({
+            message: "Learning path generated",
+            plan
+          });
+        }
+      );
     }
   );
 });
 
 /**
- * GET USER LEARNING PATH
+ * GET LATEST LEARNING PATH
  */
 router.get("/:userId", (req, res) => {
-  const userId = req.params.userId;
+  const userId = Number(req.params.userId);
 
   db.query(
-    "SELECT * FROM learning_paths WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+    `
+    SELECT goal, daily_time, generated_plan
+    FROM learning_paths
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+    `,
     [userId],
     (err, results) => {
-      if (err) return res.status(500).json({ error: err });
+      if (err) return res.status(500).json({ error: "Database error" });
 
-      if (results.length === 0) {
+      if (!results || results.length === 0) {
         return res.status(404).json({ message: "No learning path found" });
+      }
+
+      let plan = results[0].generated_plan;
+      if (typeof plan === "string") {
+        plan = JSON.parse(plan);
       }
 
       res.json({
         goal: results[0].goal,
         daily_time: results[0].daily_time,
-        plan: results[0].generated_plan
+        plan
       });
     }
   );
 });
-
-/**
- * UPDATE WEEK PROGRESS
- */
-router.put("/progress/:userId", (req, res) => {
-  const { userId } = req.params;
-  const { plan } = req.body; // updated plan array
-
-  if (!plan) {
-    return res.status(400).json({ message: "Plan data required" });
-  }
-
-  db.query(
-    "UPDATE learning_paths SET generated_plan = ? WHERE user_id = ?",
-    [JSON.stringify(plan), userId],
-    (err) => {
-      if (err) return res.status(500).json({ error: err });
-
-      res.json({ message: "Progress updated" });
-    }
-  );
-});
-
 
 module.exports = router;

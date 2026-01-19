@@ -19,7 +19,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.get("/courses").then((res) => {
-      setCourses(res.data.slice(0, 3));
+      const data: Course[] =
+        Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data.courses)
+          ? res.data.courses
+          : Array.isArray(res.data.data)
+          ? res.data.data
+          : [];
+
+      setCourses(data.slice(0, 3));
     });
   }, []);
 
@@ -72,7 +81,6 @@ export default function Dashboard() {
               key={course.id}
               className="bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-2xl transition overflow-hidden"
             >
-              {/* SAME IMAGE AS COURSES */}
               <img
                 src={getCourseImage(course.id)}
                 alt={course.title}

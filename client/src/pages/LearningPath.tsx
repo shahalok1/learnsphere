@@ -2,147 +2,138 @@ import { useEffect, useState } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
+/* ---------- Types ---------- */
 type PlanItem = {
   week: number;
   focus: string;
-  completed?: boolean;
 };
 
-type LearningPathType = {
+type LearningPathData = {
   goal: string;
   daily_time: number;
-  generated_plan: PlanItem[];
+  plan: PlanItem[];
 };
 
 export default function LearningPath() {
   const { user } = useAuth();
-  const [path, setPath] = useState<LearningPathType | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  if (!user) return null;
+  /* ---------- Auth Guard ---------- */
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Please login to view your learning path.
+      </div>
+    );
+  }
+
+  const [data, setData] = useState<LearningPathData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+
+  /* ---------- Fetch Learning Path ---------- */
+  const fetchLearningPath = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/learning-path/${user.id}`);
+
+      let plan = res.data.plan;
+
+      // ✅ Handle stringified JSON from DB
+      if (typeof plan === "string") {
+        plan = JSON.parse(plan);
+      }
+
+      setData({
+        goal: res.data.goal,
+        daily_time: res.data.daily_time,
+        plan: Array.isArray(plan) ? plan : []
+      });
+    } catch (err) {
+      console.warn("No learning path found");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPath = async () => {
-      try {
-        const res = await api.get(`/learning-path/${user.id}`);
-
-        let planData = res.data.plan || res.data.generated_plan;
-
-        // ✅ SAFELY HANDLE STRING OR ARRAY
-        if (typeof planData === "string") {
-          planData = JSON.parse(planData);
-        }
-
-        // Add completed flag if missing
-        const normalizedPlan = planData.map((item: PlanItem) => ({
-          ...item,
-          completed: item.completed ?? false
-        }));
-
-        setPath({
-          goal: res.data.goal,
-          daily_time: res.data.daily_time,
-          generated_plan: normalizedPlan
-        });
-      } catch (err) {
-        console.error("No learning path found");
-        setPath(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPath();
+    fetchLearningPath();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
-  // ⏳ LOADING STATE
+  /* ---------- Loading ---------- */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <p className="text-lg text-gray-600 dark:text-gray-300">
-          Loading your learning path...
-        </p>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading learning path...
       </div>
     );
   }
 
-  // 🧠 NO PATH YET
-  if (!path) {
+  /* ---------- Empty State ---------- */
+  if (!data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center">
+        <h2 className="text-2xl font-bold">
           No Learning Path Found
         </h2>
-        <p className="text-gray-600 dark:text-gray-300">
-          Generate your personalized learning path to get started.
+
+        <p className="text-gray-600 dark:text-gray-300 max-w-md">
+          Generate a personalized roadmap to guide your learning journey.
         </p>
+
+        <button
+          disabled={generating}
+          onClick={async () => {
+            try {
+              setGenerating(true);
+              await api.post("/learning-path", {
+                user_id: user.id,
+                goal: "Full Stack Development",
+                daily_time: 60
+              });
+              await fetchLearningPath(); // ✅ No reload
+            } catch (err) {
+              console.error("Failed to generate learning path", err);
+            } finally {
+              setGenerating(false);
+            }
+          }}
+          className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+        >
+          {generating ? "Generating..." : "Generate Learning Path"}
+        </button>
       </div>
     );
   }
 
-  const completedCount = path.generated_plan.filter(p => p.completed).length;
-  const progress = Math.round(
-    (completedCount / path.generated_plan.length) * 100
-  );
-
+  /* ---------- UI ---------- */
   return (
     <div className="min-h-screen p-10 bg-gray-100 dark:bg-gray-900">
-      <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">
+      <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">
         Your Learning Path
       </h1>
 
-      <p className="text-gray-700 dark:text-gray-300">
-        🎯 Goal: <strong>{path.goal}</strong>
+      <p className="text-gray-600 dark:text-gray-300 mb-6">
+        🎯 Goal: <strong>{data.goal}</strong> · ⏱{" "}
+        {data.daily_time} min/day
       </p>
 
-      <p className="text-gray-700 dark:text-gray-300 mb-6">
-        ⏱ Daily Time: {path.daily_time} minutes
-      </p>
-
-      {/* PROGRESS BAR */}
-      <div className="mb-8">
-        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded-full">
-          <div
-            className="h-4 bg-indigo-600 rounded-full transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-          Progress: {progress}%
-        </p>
-      </div>
-
-      {/* PLAN */}
       <div className="space-y-4">
-        {path.generated_plan.map((item) => (
-          <div
-            key={item.week}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow flex justify-between items-center"
-          >
-            <div>
-              <h2 className="text-lg font-semibold text-indigo-600">
-                Week {item.week}
-              </h2>
-              <p className="text-gray-700 dark:text-gray-300">
-                {item.focus}
-              </p>
+        {data.plan.length === 0 ? (
+          <p className="text-gray-500">
+            Learning plan is empty.
+          </p>
+        ) : (
+          data.plan.map((item) => (
+            <div
+              key={item.week}
+              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow"
+            >
+              <strong>Week {item.week}:</strong> {item.focus}
             </div>
-
-            <input
-              type="checkbox"
-              checked={item.completed}
-              onChange={() => {
-                const updated = path.generated_plan.map(p =>
-                  p.week === item.week
-                    ? { ...p, completed: !p.completed }
-                    : p
-                );
-                setPath({ ...path, generated_plan: updated });
-              }}
-              className="w-6 h-6 accent-indigo-600"
-            />
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

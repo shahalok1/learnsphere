@@ -19,10 +19,18 @@ export default function CommunityRoom() {
   if (!user) return null;
 
   const fetchMessages = () => {
-    api.get(`/community/${roomId}`).then((res) => {
-      setMessages(res.data);
-    });
-  };
+  api.get(`/community/${roomId}`).then((res) => {
+    const data =
+      Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data.messages)
+        ? res.data.messages
+        : [];
+
+    setMessages(data);
+  });
+};
+
 
   useEffect(() => {
     fetchMessages();

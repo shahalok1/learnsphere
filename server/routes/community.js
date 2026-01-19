@@ -20,7 +20,7 @@ router.get("/:roomId", (req, res) => {
     [roomId],
     (err, results) => {
       if (err) return res.status(500).json({ error: err });
-      res.json(results);
+      res.json({ messages: results });
     }
   );
 });
@@ -43,7 +43,6 @@ router.post("/", (req, res) => {
     [room_id, user_id, message],
     (err) => {
       if (err) return res.status(500).json({ error: err });
-
       res.status(201).json({ message: "Message sent successfully" });
     }
   );

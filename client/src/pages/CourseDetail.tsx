@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../api/axios";
 import { getCourseImage } from "../utils/courseImages";
 import { useAuth } from "../context/AuthContext";
+import PaymentModal from "../components/PaymentModal";
 
 type Course = {
   id: number;
@@ -14,26 +15,65 @@ type Course = {
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [course, setCourse] = useState<Course | null>(null);
 
-  if (!user) return null;
+  const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showPayment, setShowPayment] = useState(false);
 
   useEffect(() => {
-    api.get("/courses").then((res) => {
-      const found = res.data.find(
-        (c: Course) => c.id === Number(id)
-      );
-      setCourse(found);
-    });
+    if (!id) return;
+
+    const fetchCourse = async () => {
+      try {
+        const res = await api.get("/courses");
+
+        // 🔧 NORMALIZE RESPONSE (THIS IS THE FIX)
+        const courses: Course[] =
+          Array.isArray(res.data)
+            ? res.data
+            : Array.isArray(res.data.courses)
+            ? res.data.courses
+            : Array.isArray(res.data.data)
+            ? res.data.data
+            : [];
+
+        const found = courses.find(
+          (c) => c.id === Number(id)
+        );
+
+        setCourse(found || null);
+      } catch (err) {
+        console.error("Failed to load course", err);
+        setCourse(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourse();
   }, [id]);
 
-  if (!course) {
+  /* ---------- STATES ---------- */
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading course...
+        Loading course…
       </div>
     );
   }
+
+  if (!course) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        Course not found
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  /* ---------- UI ---------- */
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -44,12 +84,30 @@ export default function CourseDetail() {
             <h1 className="text-4xl font-extrabold mb-4">
               {course.title}
             </h1>
+
             <p className="text-gray-300 mb-6">
               {course.description}
             </p>
-            <button className="bg-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700">
-              Enroll Now
-            </button>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowPayment(true)}
+                className="bg-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
+              >
+                Enroll Now
+              </button>
+
+              <button
+                onClick={() =>
+                  window.open(
+                    `http://localhost:5000/api/certificate/${user.name}/${course.title}`
+                  )
+                }
+                className="px-6 py-3 rounded-lg border border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-gray-800"
+              >
+                🎓 Certificate
+              </button>
+            </div>
           </div>
 
           <img
@@ -73,6 +131,16 @@ export default function CourseDetail() {
           <li>✔ Become job-ready</li>
         </ul>
       </div>
+
+      {showPayment && (
+        <PaymentModal
+          onClose={() => setShowPayment(false)}
+          onSuccess={() => {
+            alert("Payment successful 🎉 You are enrolled!");
+            setShowPayment(false);
+          }}
+        />
+      )}
     </div>
   );
 }

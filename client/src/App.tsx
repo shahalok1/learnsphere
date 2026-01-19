@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -12,11 +12,11 @@ import LearningPath from "./pages/LearningPath";
 import CommunityRoom from "./pages/CommunityRoom";
 import About from "./pages/About";
 
-import ProtectedRoute from "./components/ProtectedRoute.tsx";
-import Navbar from "./components/Navbar.tsx";
-import Footer from "./components/Footer.tsx";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import AnimatedBackground from "./components/AnimatedBackground";
 
-/* ---------- Layout Wrapper ---------- */
 function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
@@ -28,6 +28,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {!hideLayout && <AnimatedBackground />}
       {!hideLayout && <Navbar />}
       {children}
       {!hideLayout && <Footer />}
@@ -35,75 +36,71 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
-      <Layout>
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+    <Layout>
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Protected */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+        {/* Protected */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/courses"
-            element={
-              <ProtectedRoute>
-                <Courses />
-              </ProtectedRoute>
-            }
-          />
+        <Route
+          path="/courses"
+          element={
+            <ProtectedRoute>
+              <Courses />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/course/:id"
-            element={
-              <ProtectedRoute>
-                <CourseDetail />
-              </ProtectedRoute>
-            }
-          />
+        <Route
+          path="/course/:id"
+          element={
+            <ProtectedRoute>
+              <CourseDetail />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/learning-path"
-            element={
-              <ProtectedRoute>
-                <LearningPath />
-              </ProtectedRoute>
-            }
-          />
+        <Route
+          path="/learning-path"
+          element={
+            <ProtectedRoute>
+              <LearningPath />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/community/:roomId"
-            element={
-              <ProtectedRoute>
-                <CommunityRoom />
-              </ProtectedRoute>
-            }
-          />
+        <Route
+          path="/community/:roomId"
+          element={
+            <ProtectedRoute>
+              <CommunityRoom />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/about"
-            element={
-              <ProtectedRoute>
-                <About />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+        <Route
+          path="/about"
+          element={
+            <ProtectedRoute>
+              <About />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Layout>
   );
 }
-
-export default App;
